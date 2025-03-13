@@ -7,13 +7,13 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <style>
-        /* ======== Estilo inspirado no FlightRadar24 ======== */
+        /* ======== Estilo claro para melhor visibilidade ======== */
         body, html {
             margin: 0;
             padding: 0;
             font-family: Arial, sans-serif;
-            background: #121212;
-            color: #fff;
+            background: #f8f9fa;
+            color: #333;
         }
         
         #map {
@@ -21,7 +21,7 @@
             height: 100vh;
         }
 
-        /* Animação para o ícone do avião */
+        /* Ícone de avião com rotação suave */
         .plane-icon {
             transition: transform 1s linear;
         }
@@ -32,19 +32,17 @@
     <div id="map"></div>
 
     <script>
-        // Inicializa o mapa corretamente
+        // Inicializa o mapa no centro do mundo
         let map = L.map('map').setView([0, 0], 3);
 
-        // Melhor estilo de mapa (FlightRadar24 Dark Mode)
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
-            subdomains: 'abcd',
-            maxZoom: 19
+        // Mapa claro do OpenStreetMap
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
         }).addTo(map);
 
-        let aircraftMarkers = {}; // Dicionário para armazenar aviões
+        let aircraftMarkers = {}; // Objeto para armazenar os aviões no mapa
 
-        // Função para criar um ícone de avião girado corretamente
+        // Função para criar um ícone de avião girado na direção correta
         function createPlaneIcon(rotation) {
             return L.divIcon({
                 html: `<img src="https://cdn-icons-png.flaticon.com/512/684/684908.png" 
@@ -61,7 +59,9 @@
                 let data = await response.json();
                 let newAircraftMarkers = {};
 
-                data.states.slice(0, 50).forEach(aircraft => {
+                console.log("Total de voos recebidos:", data.states.length); // Verifica a quantidade de voos na API
+
+                data.states.forEach(aircraft => { 
                     let icao24 = aircraft[0]; // Código único do avião
                     let callsign = aircraft[1] ? aircraft[1].trim() : "Desconhecido";
                     let lat = aircraft[6];
@@ -72,10 +72,11 @@
 
                     if (lat !== null && lon !== null) {
                         if (aircraftMarkers[icao24]) {
-                            // Atualiza posição do avião existente
+                            // Atualiza posição e direção do avião
                             aircraftMarkers[icao24].setLatLng([lat, lon]);
+                            aircraftMarkers[icao24].setIcon(createPlaneIcon(heading));
                         } else {
-                            // Cria novo marcador de avião
+                            // Cria novo marcador para o avião
                             let marker = L.marker([lat, lon], { icon: createPlaneIcon(heading) })
                                 .addTo(map)
                                 .bindTooltip(`<b>${callsign}</b><br>Velocidade: ${velocity} km/h<br>Altitude: ${altitude}`, {
