@@ -3,137 +3,109 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapa Interativo de Aeroportos e Aviões</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+    <title>Flight Radar - Aviões em Tempo Real</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <style>
-        #map { height: 100vh; }
-        #sidebar {
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 300px;
+        /* ======== Estilo claro para melhor visibilidade ======== */
+        body, html {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: #f8f9fa;
+            color: #333;
+        }
+        
+        #map {
+            width: 100%;
             height: 100vh;
-            background: white;
-            overflow-y: auto;
-            padding: 15px;
-            z-index: 1000;
-            box-shadow: -2px 0 5px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Ícone de avião com rotação suave */
+        .plane-icon {
+            transition: transform 1s linear;
         }
     </style>
 </head>
 <body>
 
-    <div id="sidebar">
-        <h4>✈️ Aviões em Tempo Real</h4>
-        <input type="text" id="search" class="form-control" placeholder="Buscar aeroporto...">
-        <ul id="aircraft-list" class="list-group mt-3"></ul>
-    </div>
-
     <div id="map"></div>
 
     <script>
-        let map = L.map('map').setView([0, 0], 3); // Centraliza o mapa
+        // Inicializa o mapa no centro do mundo
+        let map = L.map('map').setView([0, 0], 3);
+
+        // Mapa claro do OpenStreetMap
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap'
         }).addTo(map);
 
-        let airportMarkers = {}; 
-        let aircraftMarkers = {}; 
+        let aircraftMarkers = {}; // Objeto para armazenar os aviões no mapa
 
-        let airplaneIcon = L.icon({
-            iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png', // Ícone de avião
-            iconSize: [32, 32],
-            iconAnchor: [16, 16]
-        });
-
-        // Função para carregar aeroportos da AviationStack API
-        async function loadAirports() {
-            const API_KEY = "f3751f61a63e2e36d16c085ec0ea55d6"; // Substituir pela sua chave
-            let response = await fetch(`http://api.aviationstack.com/v1/airports?access_key=${API_KEY}`);
-            let data = await response.json();
-
-            data.data.forEach(airport => {
-                let marker = L.marker([airport.latitude, airport.longitude])
-                    .addTo(map)
-                    .bindPopup(`<b>${airport.airport_name} (${airport.iata_code})</b><br>${airport.city}, ${airport.country_name}`);
-                
-                airportMarkers[airport.iata_code] = marker;
+        // Função para criar um ícone de avião girado na direção correta
+        function createPlaneIcon(rotation) {
+            return L.divIcon({
+                html: `<img src="https://cdn-icons-png.flaticon.com/512/6030/6030844.png" 
+                            width="32" height="32" 
+                            style="transform: rotate(${rotation}deg);">`,
+                iconSize: [32, 32],
+                className: "plane-icon"
             });
         }
 
-        // Função para exibir aviões em tempo real da OpenSky Network API
-        async function loadAircrafts(highlightedIcao24s = []) {
-            let response = await fetch("https://opensky-network.org/api/states/all");
-            let data = await response.json();
+        async function loadFlights() {
+            try {
+                let response = await fetch("https://opensky-network.org/api/states/all");
+                let data = await response.json();
+                let newAircraftMarkers = {};
 
-            document.getElementById('aircraft-list').innerHTML = ""; 
+                console.log("Total de voos recebidos:", data.states.length); // Verifica a quantidade de voos na API
 
-            let newAircraftMarkers = {};
+                data.states.forEach(aircraft => { 
+                    let icao24 = aircraft[0]; // Código único do avião
+                    let callsign = aircraft[1] ? aircraft[1].trim() : "Desconhecido";
+                    let lat = aircraft[6];
+                    let lon = aircraft[5];
+                    let velocity = aircraft[9] ? (aircraft[9] * 3.6).toFixed(1) : "N/A"; // m/s to km/h
+                    let altitude = aircraft[7] ? `${aircraft[7]} m` : "N/A";
+                    let heading = aircraft[10] ? aircraft[10].toFixed(0) : 0; // Direção do voo
 
-            data.states.slice(0, 50).forEach(aircraft => {
-                if (aircraft[6] !== null && aircraft[5] !== null) {
-                    let icao24 = aircraft[0];
-                    let isHighlighted = highlightedIcao24s.includes(icao24);
+                    if (lat !== null && lon !== null) {
+                        if (aircraftMarkers[icao24]) {
+                            // Atualiza posição e direção do avião
+                            aircraftMarkers[icao24].setLatLng([lat, lon]);
+                            aircraftMarkers[icao24].setIcon(createPlaneIcon(heading));
+                        } else {
+                            // Cria novo marcador para o avião
+                            let marker = L.marker([lat, lon], { icon: createPlaneIcon(heading) })
+                                .addTo(map)
+                                .bindTooltip(`<b>${callsign}</b><br>Velocidade: ${velocity} km/h<br>Altitude: ${altitude}`, {
+                                    permanent: false,
+                                    direction: "top"
+                                });
 
-                    if (aircraftMarkers[icao24]) {
-                        // Mover avião existente
-                        aircraftMarkers[icao24].setLatLng([aircraft[6], aircraft[5]]);
-                    } else {
-                        // Criar novo avião
-                        let marker = L.marker([aircraft[6], aircraft[5]], { 
-                            icon: isHighlighted ? L.icon({
-                                iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684913.png', // Ícone diferenciado para aviões destacados
-                                iconSize: [40, 40],
-                                iconAnchor: [20, 20]
-                            }) : airplaneIcon 
-                        })
-                        .addTo(map)
-                        .bindPopup(`<b>${aircraft[1]}</b><br>Altitude: ${aircraft[7]}m`);
-                        
-                        aircraftMarkers[icao24] = marker;
+                            aircraftMarkers[icao24] = marker;
+                        }
+                        newAircraftMarkers[icao24] = aircraftMarkers[icao24];
                     }
-                    newAircraftMarkers[icao24] = aircraftMarkers[icao24];
+                });
 
-                    let listItem = document.createElement("li");
-                    listItem.className = `list-group-item ${isHighlighted ? 'bg-warning' : ''}`;
-                    listItem.innerText = `${aircraft[1]} - ${aircraft[2]}`;
-                    document.getElementById("aircraft-list").appendChild(listItem);
-                }
-            });
+                // Remove aviões que não estão mais na resposta da API
+                Object.keys(aircraftMarkers).forEach(icao => {
+                    if (!newAircraftMarkers[icao]) {
+                        map.removeLayer(aircraftMarkers[icao]);
+                        delete aircraftMarkers[icao];
+                    }
+                });
 
-            // Remover aviões que não estão mais na lista
-            Object.keys(aircraftMarkers).forEach(icao => {
-                if (!newAircraftMarkers[icao]) {
-                    map.removeLayer(aircraftMarkers[icao]);
-                    delete aircraftMarkers[icao];
-                }
-            });
+            } catch (error) {
+                console.error("Erro ao carregar voos:", error);
+            }
         }
 
-        // Atualiza aviões a cada 15 segundos
-        setInterval(() => loadAircrafts(getIcao24FromURL()), 15000);
-
-        // Pega ICAO24s da URL para destacar aviões específicos
-        function getIcao24FromURL() {
-            let params = new URLSearchParams(window.location.search);
-            return params.getAll("icao24");
-        }
-
-        // Barra de pesquisa para buscar aeroportos
-        document.getElementById("search").addEventListener("input", function () {
-            let searchValue = this.value.toLowerCase();
-            Object.values(airportMarkers).forEach(marker => {
-                let popupContent = marker.getPopup().getContent().toLowerCase();
-                if (popupContent.includes(searchValue)) {
-                    marker.openPopup();
-                }
-            });
-        });
-
-        loadAirports();
-        loadAircrafts(getIcao24FromURL());
+        // Atualiza os voos a cada 15 segundos
+        setInterval(loadFlights, 15000);
+        loadFlights();
     </script>
 
 </body>
