@@ -32,13 +32,19 @@
     <div id="map"></div>
 
     <script>
+        // Inicializa o mapa corretamente
+        let map = L.map('map').setView([0, 0], 3);
+
+        // Melhor estilo de mapa (FlightRadar24 Dark Mode)
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
             subdomains: 'abcd',
             maxZoom: 19
         }).addTo(map);
 
-        // Função para criar um ícone de avião girado na direção correta
+        let aircraftMarkers = {}; // Dicionário para armazenar aviões
+
+        // Função para criar um ícone de avião girado corretamente
         function createPlaneIcon(rotation) {
             return L.divIcon({
                 html: `<img src="https://cdn-icons-png.flaticon.com/512/684/684908.png" 
@@ -66,8 +72,10 @@
 
                     if (lat !== null && lon !== null) {
                         if (aircraftMarkers[icao24]) {
+                            // Atualiza posição do avião existente
                             aircraftMarkers[icao24].setLatLng([lat, lon]);
                         } else {
+                            // Cria novo marcador de avião
                             let marker = L.marker([lat, lon], { icon: createPlaneIcon(heading) })
                                 .addTo(map)
                                 .bindTooltip(`<b>${callsign}</b><br>Velocidade: ${velocity} km/h<br>Altitude: ${altitude}`, {
@@ -81,7 +89,7 @@
                     }
                 });
 
-                // Remover aviões que não estão mais na resposta da API
+                // Remove aviões que não estão mais na resposta da API
                 Object.keys(aircraftMarkers).forEach(icao => {
                     if (!newAircraftMarkers[icao]) {
                         map.removeLayer(aircraftMarkers[icao]);
