@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapa Interativo de Aeroportos</title>
+    <title>Mapa Interativo de Aeroportos e Aviões</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
@@ -34,13 +34,19 @@
     <div id="map"></div>
 
     <script>
-        let map = L.map('map').setView([0, 0], 2); // Centraliza o mapa
+        let map = L.map('map').setView([0, 0], 3); // Centraliza o mapa
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap'
         }).addTo(map);
 
         let airportMarkers = {}; 
-        let aircraftLayer = L.layerGroup().addTo(map);
+        let aircraftMarkers = {}; 
+
+        let airplaneIcon = L.icon({
+            iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png', // Ícone de avião
+            iconSize: [32, 32],
+            iconAnchor: [16, 16]
+        });
 
         // Carregar todos os aeroportos da AviationStack API
         async function loadAirports() {
@@ -62,19 +68,39 @@
             let response = await fetch("https://opensky-network.org/api/states/all");
             let data = await response.json();
 
-            aircraftLayer.clearLayers();
             document.getElementById('aircraft-list').innerHTML = ""; 
+
+            let newAircraftMarkers = {};
 
             data.states.slice(0, 50).forEach(aircraft => {
                 if (aircraft[6] !== null && aircraft[5] !== null) {
-                    let marker = L.marker([aircraft[6], aircraft[5]], { icon: L.divIcon({ className: "custom-icon" }) })
-                        .addTo(aircraftLayer)
-                        .bindPopup(`<b>${aircraft[1]}</b><br>Altitude: ${aircraft[7]}m`);
+                    let icao24 = aircraft[0];
+
+                    if (aircraftMarkers[icao24]) {
+                        // Mover avião existente
+                        aircraftMarkers[icao24].setLatLng([aircraft[6], aircraft[5]]);
+                    } else {
+                        // Criar novo avião
+                        let marker = L.marker([aircraft[6], aircraft[5]], { icon: airplaneIcon })
+                            .addTo(map)
+                            .bindPopup(`<b>${aircraft[1]}</b><br>Altitude: ${aircraft[7]}m`);
+                        
+                        aircraftMarkers[icao24] = marker;
+                    }
+                    newAircraftMarkers[icao24] = aircraftMarkers[icao24];
 
                     let listItem = document.createElement("li");
                     listItem.className = "list-group-item";
                     listItem.innerText = `${aircraft[1]} - ${aircraft[2]}`;
                     document.getElementById("aircraft-list").appendChild(listItem);
+                }
+            });
+
+            // Remover aviões que não estão mais na lista
+            Object.keys(aircraftMarkers).forEach(icao => {
+                if (!newAircraftMarkers[icao]) {
+                    map.removeLayer(aircraftMarkers[icao]);
+                    delete aircraftMarkers[icao];
                 }
             });
         }
