@@ -1,20 +1,16 @@
 name: Continuous Integration
 on:
-  pull_requests:
+  pull_request:
     branches:
       - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    setps:
+    steps:  # ✅ Corrected from 'setps' to 'steps'
       - name: Check out repository code
         uses: actions/checkout@v4
 
       - name: Run Nullify vulnerability scanner
         uses: nullify-platform/dast-action@main
-        with:
-          app-name: 'My REST API'
-          header: 'Authorization: Bearer 1234'
-          spec-path: 'openapi.json'
-          target-host: 'api.myapp1234.dev'
+      
