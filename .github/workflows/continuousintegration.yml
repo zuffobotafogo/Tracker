@@ -11,10 +11,7 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v4
 
-      - name: Run Nullify vulnerability scanner
-        uses: nullify-platform/dast-action@main
+      - name: Python Lint Code Scanning Action
+        uses: advanced-security/python-lint-code-scanning-action@v1.1.1
         with:
-          app-name: 'My REST API'
-          header: 'Authorization: Bearer 1234'
-          spec-path: 'openapi.json'
-          target-host: 'api.myapp1234.dev'
+          linter: pylint
