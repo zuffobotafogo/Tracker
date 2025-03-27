@@ -13,4 +13,8 @@ jobs:
 
       - name: Run Nullify vulnerability scanner
         uses: nullify-platform/dast-action@main
-      
+        with:
+          app-name: 'My REST API'
+          header: 'Authorization: Bearer 1234'
+          spec-path: 'openapi.json'
+          target-host: 'api.myapp1234.dev'
