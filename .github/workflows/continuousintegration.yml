@@ -1,0 +1,15 @@
+name: Continuous Integration
+on:
+  pull_requests:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    setps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Run Nullify vulnerability scanner
+        uses: nullify-platform/dast-action@main
