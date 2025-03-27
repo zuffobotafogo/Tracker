@@ -18,4 +18,4 @@ jobs:
       # Install npm dependencies, cache them correctly
       # and run all Cypress tests
       - name: Cypress.io
-        uses: cypress-io/github-action@v6.7.16
+        uses: cypress-io/github-action@v6.7.16z
